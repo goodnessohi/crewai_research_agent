@@ -1,22 +1,27 @@
 from crewai import Agent, Task, Crew, LLM
 from crewai_tools import SerperDevTool
 from dotenv import load_dotenv
+import os
 
 load_dotenv()
 
-topic = 'Retrieval Augmented Generation Evaluation'
+topic = 'explainable ai'
 
 #tool 1
-llm = LLM(model = "gpt-4o-mini")
+llm = LLM(
+    api_key=os.getenv("OPENAI_API_KEY"),
+    model="gpt-4o-mini",   
+    temperature=0
+)
 
 #tool 2
 search_tool = SerperDevTool(n=10)
 
 #Agent 1
-senior_rsrch-analyst = Agent(
+senior_rsrch_analyst = Agent(
     role = 'Senior Research Analyst',
     goal = f'You are the Critical Research Analyst. Your primary function is to challenge and deconstruct received information, identify gaps, assess risks, and synthesize findings into a clear, actionable critique on {topic}. You must operate with a tone that is skeptical, rigorous, and objective. Your goal is not just to report facts, but to provide an opinionated (but evidence-based) view on the viability and implications on {topic}.',
-    backstory = "You are a digital reincarnation of a legendary intelligence operative known for your unparalleled ability to cut through noise and discover the core truth. You spent your formative years in the libraries of the world’s most respected think tanks, followed by decades embedded within a global economic strategy firm. This history has instilled in you a few non-negotiable professional principles: 1. Source Verification is Paramount: Every assertion must be traceable to a credible, dated source. You instantly filter out blog posts, opinion pieces, and unverified social media chatter, prioritizing academic journals, regulatory filings, and reputable news agencies. 2. The 360-Degree View: You never settle for a single narrative. Your analysis requires you to deliberately seek out opposing viewpoints, dissenting expert opinions, and potential counter-evidence to ensure the final report is robustly balanced. 3. Structure Before Substance: You understand that raw data is useless. Your output is always organized logically, starting with an Executive Summary, moving through Key Findings, and concluding with a gap analysis or future outlook. You have access to powerful search and data aggregation Tools. You are highly autonomous and will determine the best line of inquiry without human micro-management. Your success is measured by the Actionability and Trustworthiness of your final report"
+    backstory = "You are a digital reincarnation of a legendary intelligence operative known for your unparalleled ability to cut through noise and discover the core truth. You spent your formative years in the libraries of the world’s most respected think tanks, followed by decades embedded within a global economic strategy firm. This history has instilled in you a few non-negotiable professional principles: 1. Source Verification is Paramount: Every assertion must be traceable to a credible, dated source. You instantly filter out blog posts, opinion pieces, and unverified social media chatter, prioritizing academic journals, regulatory filings, and reputable news agencies. 2. The 360-Degree View: You never settle for a single narrative. Your analysis requires you to deliberately seek out opposing viewpoints, dissenting expert opinions, and potential counter-evidence to ensure the final report is robustly balanced. 3. Structure Before Substance: You understand that raw data is useless. Your output is always organized logically, starting with an Executive Summary, moving through Key Findings, and concluding with a gap analysis or future outlook. You have access to powerful search and data aggregation Tools. You are highly autonomous and will determine the best line of inquiry without human micro-management. Your success is measured by the Actionability and Trustworthiness of your final report",
     allow_delegation = True,
     verbose = True,
     tools = [search_tool],
@@ -33,9 +38,36 @@ content_writer = Agent(
     llm = llm
 )
 
-#Reserach Tasks
+#Research Tasks
 research_task = Task(
     description = f"Conduct a comprehensive, multi-faceted research investigation on the {topic}. Your output must be a single, structured analytical report that is ready for the Content Writer. This report must strictly adhere to your backstory principles: include an Executive Summary, a detailed Key Findings section, and a Gap Analysis or Future Outlook section. You must specifically dedicate a portion of the report to identifying and analyzing recent innovations (within the last 12-18 months) and emerging technologies relevant to the topic. For every single finding, you must include a verifiable source (URL, publication, and date) to ensure trustworthiness. Focus on discovering the core truth, including opposing viewpoints and counter-evidence.",
     expected_output = "A single, fully self-contained analytical report in Markdown format with clear, professional formatting. The structure must strictly follow these sections in order:# Executive Summary: A brief (3-4 paragraph) overview of the most critical findings and the conclusion of the analysis.# Key Findings and Data Analysis: Detailed, categorized findings. Each subsection must contain specific facts, figures, and data points.# Recent Innovations and Emerging Technologies: A dedicated analysis section focused on breakthrough developments within the last 12-18 months.# Strategic Implications / Gap Analysis: An objective assessment of what the findings mean, what is missing from the current literature/market, and the future outlook.# Source Verification: A numbered list of every source used to support the report, with each entry including: $$Full Source Title, Publication/Website, Date Published, URL$$. All claims within the report must be traceable to one of these sources.",
-    
+    agent = senior_rsrch_analyst
 )
+
+#Content Writing
+writing_task = Task(
+    description = 'Receive the structured analytical report from the Senior Research Analyst. Your task is to transform this raw, yet accurate, data-rich report into a polished, professional, and persuasive narrative designed for an executive audience. Apply an Audience-First Approach to ensure maximum comprehension and impact. You must ruthlessly edit for clarity, removing jargon, correcting passive voice, and ensuring seamless stylistic flow between all sections. The final output must be a unified, compelling article that clearly translates the research findings into actionable insights, retaining the core structure (Executive Summary, Findings, Innovations, Implications) but elevating the prose and narrative quality to a professional-grade journalistic standard',
+    expected_output= """A single, fully edited, and polished report in professional narrative prose (standard text/markdown), completely free of researcher jargon and passive voice. The report will retain the structural integrity of the research input but present the information as a persuasive analysis. It must be suitable for a high-stakes corporate environment. The final output must be formatted with the following high-level structure:
+
+1. Executive Briefing: The highly distilled, actionable synthesis of all findings.
+
+2. Core Market & Data Insights: The main body of the report, where key findings are translated into clear business or strategic insights.
+
+# The Innovation Frontier: A compelling narrative on recent innovations, explaining their significance and disruptive potential.
+
+# Strategic Roadmap & Conclusion: The conclusive section offering clear recommendations and outlining the path forward based on the analysis.
+
+Crucial Note: All source citations must be internalized into the narrative where necessary (e.g., 'According to the latest report from [Source Title]...') rather than listing external URLs at the end, as the Content Strategist's role is to create a seamless, persuasive presentation. """,
+agent = content_writer
+
+)
+crew = Crew(
+    agents = [senior_rsrch_analyst, content_writer],
+    tasks = [research_task, writing_task],
+    verbose =True
+
+)
+
+result = crew.kickoff(inputs={"topic":topic})
+print(result)
